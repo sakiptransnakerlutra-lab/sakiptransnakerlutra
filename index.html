@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>e-SAKIP — Disnakertrans Kabupaten Luwu Utara</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,500&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy-950:#0B2545;
+    --navy-800:#13315C;
+    --navy-700:#1D4068;
+    --gold-600:#B8860B;
+    --gold-500:#C9A227;
+    --gold-100:#F6ECCB;
+    --ink-900:#16232E;
+    --paper:#F5F6F8;
+    --success:#2F7D5D;
+    --warn:#B9770E;
+    --danger:#B03A2E;
+  }
+  *{font-family:'Plus Jakarta Sans',sans-serif;}
+  .font-mono-data{font-family:'IBM Plex Mono',monospace;}
+  body{background:var(--paper);color:var(--ink-900);}
+  .sidebar-link.active{background:rgba(201,162,39,0.14);color:var(--gold-500);border-left-color:var(--gold-500);}
+  .sidebar-link{border-left:3px solid transparent;transition:all .15s ease;}
+  .sidebar-link:hover{background:rgba(255,255,255,0.06);}
+  .card{background:#fff;border:1px solid rgba(11,37,69,0.08);border-radius:14px;box-shadow:0 1px 2px rgba(11,37,69,.04);}
+  .stamp{
+    border:2px dashed var(--gold-500);
+    border-radius:9999px;
+    position:relative;
+  }
+  .stamp::before{
+    content:'';
+    position:absolute; inset:6px;
+    border:1px solid rgba(184,134,11,0.35);
+    border-radius:9999px;
+  }
+  .badge{font-size:.72rem;font-weight:700;letter-spacing:.02em;padding:.28rem .6rem;border-radius:9999px;}
+  .badge-tercapai{background:rgba(47,125,93,0.12);color:var(--success);}
+  .badge-perhatian{background:rgba(185,119,14,0.12);color:var(--warn);}
+  .badge-belum{background:rgba(176,58,46,0.12);color:var(--danger);}
+  .badge-nodata{background:rgba(22,35,46,0.08);color:#5b6b76;}
+
+  /* ===================== Overlapping section transitions =====================
+     Semua <section> ditumpuk pada satu grid cell (grid-area: stack) sehingga saat
+     berpindah menu, section lama & section baru sempat "bertumpuk" (overlap) dan
+     saling crossfade — bukan potong instan (display:none → block). */
+  .section-stack{display:grid;}
+  .section-stack > .section{grid-area: 1 / 1;}
+  .section{
+    opacity:0;
+    transform:translateY(14px) scale(.99);
+    pointer-events:none;
+    visibility:hidden;
+    transition:opacity .45s cubic-bezier(.4,0,.2,1), transform .45s cubic-bezier(.4,0,.2,1), visibility 0s linear .45s;
+    will-change:opacity, transform;
+  }
+  .section.active{
+    opacity:1;
+    transform:translateY(0) scale(1);
+    pointer-events:auto;
+    visibility:visible;
+    position:relative; z-index:2;
+    transition:opacity .45s cubic-bezier(.4,0,.2,1), transform .45s cubic-bezier(.4,0,.2,1), visibility 0s linear 0s;
+  }
+
+  /* Staggered card entrance whenever a section becomes active */
+  @keyframes fadeInUp{from{opacity:0; transform:translateY(16px);} to{opacity:1; transform:translateY(0);}}
+  .section.active > *{animation:fadeInUp .5s cubic-bezier(.4,0,.2,1) both;}
+  .section.active > *:nth-child(1){animation-delay:.02s;}
+  .section.active > *:nth-child(2){animation-delay:.08s;}
+  .section.active > *:nth-child(3){animation-delay:.14s;}
+  .section.active > *:nth-child(4){animation-delay:.2s;}
+  #section-dashboard.active .grid.grid-cols-1.sm\:grid-cols-2.xl\:grid-cols-4 > .card{animation:fadeInUp .5s cubic-bezier(.4,0,.2,1) both;}
+  #section-dashboard.active .grid.grid-cols-1.sm\:grid-cols-2.xl\:grid-cols-4 > .card:nth-child(1){animation-delay:.04s;}
+  #section-dashboard.active .grid.grid-cols-1.sm\:grid-cols-2.xl\:grid-cols-4 > .card:nth-child(2){animation-delay:.1s;}
+  #section-dashboard.active .grid.grid-cols-1.sm\:grid-cols-2.xl\:grid-cols-4 > .card:nth-child(3){animation-delay:.16s;}
+  #section-dashboard.active .grid.grid-cols-1.sm\:grid-cols-2.xl\:grid-cols-4 > .card:nth-child(4){animation-delay:.22s;}
+
+  /* Micro-interactions */
+  .card{transition:transform .25s ease, box-shadow .25s ease, border-color .25s ease;}
+  .card:hover{transform:translateY(-3px); box-shadow:0 10px 24px rgba(11,37,69,.09); border-color:rgba(11,37,69,.14);}
+  .sidebar-link{position:relative; overflow:hidden;}
+  .sidebar-link span:first-child{display:inline-block; transition:transform .2s ease;}
+  .sidebar-link:hover span:first-child{transform:translateX(3px) scale(1.08);}
+  .mobile-link{transition:color .2s ease, transform .2s ease; color:rgba(226,232,240,.65);}
+  .mobile-link.active{color:var(--gold-500); transform:translateY(-2px);}
+  .badge{transition:transform .15s ease;}
+  tr:hover .badge{transform:scale(1.05);}
+  #refresh-btn{transition:transform .15s ease, background .2s ease;}
+  #refresh-btn:hover{transform:translateY(-1px);}
+  #refresh-btn:active{transform:translateY(0) scale(.97);}
+  #refresh-btn .icon{display:inline-block; transition:transform .5s ease;}
+  #refresh-btn.loading .icon{animation:spin .7s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  /* Stamp / predikat badge — subtle breathing pulse to draw the eye, like a fresh cap stamp */
+  .stamp{animation:stampIn .5s cubic-bezier(.34,1.56,.64,1) both;}
+  @keyframes stampIn{from{opacity:0; transform:scale(.6) rotate(-12deg);} to{opacity:1; transform:scale(1) rotate(0deg);}}
+  #kpi-predikat{display:inline-block;}
+  .predikat-pop{animation:predikatPop .4s cubic-bezier(.34,1.56,.64,1);}
+  @keyframes predikatPop{0%{transform:scale(.4); opacity:0;} 60%{transform:scale(1.15);} 100%{transform:scale(1); opacity:1;}}
+
+  /* Chart containers fade in once populated */
+  .chart-wrap{animation:fadeInUp .55s cubic-bezier(.4,0,.2,1) both; animation-delay:.15s;}
+
+  #conn-error{animation:fadeInUp .35s ease both;}
+
+  ::-webkit-scrollbar{width:8px;height:8px;}
+  ::-webkit-scrollbar-thumb{background:rgba(11,37,69,.2);border-radius:8px;}
+  .skeleton{background:linear-gradient(90deg,#eef0f3 25%,#e4e7ec 37%,#eef0f3 63%);background-size:400% 100%;animation:shimmer 1.4s ease infinite;}
+  @keyframes shimmer{0%{background-position:100% 0}100%{background-position:0 0}}
+
+  @media (prefers-reduced-motion: reduce){
+    .section, .section.active, .card, .stamp, #refresh-btn .icon, .sidebar-link span:first-child, .mobile-link, .section.active > *{
+      animation:none !important; transition:none !important;
+    }
+    .section{display:none; opacity:1; transform:none; visibility:hidden; position:static;}
+    .section.active{display:block; visibility:visible;}
+  }
+</style>
+</head>
+<body class="min-h-screen">
+
+<div class="flex min-h-screen">
+  <!-- ============================ SIDEBAR ============================ -->
+  <aside class="w-64 shrink-0 hidden lg:flex flex-col text-slate-200" style="background:linear-gradient(180deg,var(--navy-950),var(--navy-800));">
+    <div class="px-6 py-6 border-b border-white/10">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full stamp flex items-center justify-center shrink-0">
+          <span class="font-mono-data text-[10px] font-bold text-[var(--gold-500)]">SAKIP</span>
+        </div>
+        <div>
+          <p class="text-sm font-extrabold tracking-wide leading-tight">e-SAKIP</p>
+          <p class="text-[11px] text-slate-400 leading-tight">Disnakertrans Luwu Utara</p>
+        </div>
+      </div>
+    </div>
+    <nav class="flex-1 py-4 space-y-1" id="sidebar-nav">
+      <button data-target="dashboard" class="sidebar-link active w-full text-left px-6 py-2.5 text-sm font-medium flex items-center gap-3">
+        <span>◧</span> Dashboard
+      </button>
+      <button data-target="renstra" class="sidebar-link w-full text-left px-6 py-2.5 text-sm font-medium flex items-center gap-3">
+        <span>▤</span> Renstra / RKT
+      </button>
+      <button data-target="pk" class="sidebar-link w-full text-left px-6 py-2.5 text-sm font-medium flex items-center gap-3">
+        <span>✎</span> Perjanjian Kinerja
+      </button>
+      <button data-target="realisasi" class="sidebar-link w-full text-left px-6 py-2.5 text-sm font-medium flex items-center gap-3">
+        <span>▲</span> Realisasi Kinerja &amp; Anggaran
+      </button>
+      <button data-target="evaluasi" class="sidebar-link w-full text-left px-6 py-2.5 text-sm font-medium flex items-center gap-3">
+        <span>◈</span> Evaluasi SAKIP
+      </button>
+    </nav>
+    <div class="px-6 py-4 border-t border-white/10 text-[11px] text-slate-400">
+      Sumber data: Google Sheets<br/>Sinkron via Apps Script API
+    </div>
+  </aside>
+
+  <!-- ============================ MAIN ============================ -->
+  <div class="flex-1 flex flex-col min-w-0">
+    <!-- Topbar -->
+    <header class="bg-white border-b border-slate-200 px-4 sm:px-8 py-4 flex items-center justify-between gap-4">
+      <div class="min-w-0">
+        <h1 class="text-base sm:text-lg font-extrabold truncate" style="color:var(--navy-950)">Sistem Akuntabilitas Kinerja Instansi Pemerintah</h1>
+        <p class="text-xs text-slate-500 truncate" id="opd-name">Dinas Transmigrasi dan Tenaga Kerja Kabupaten Luwu Utara</p>
+      </div>
+      <div class="flex items-center gap-2 shrink-0">
+        <select id="year-select" class="text-sm border border-slate-300 rounded-lg px-3 py-1.5 font-mono-data focus:outline-none focus:ring-2 focus:ring-[var(--gold-500)]">
+          <option value="2026">Tahun 2026</option>
+          <option value="2025">Tahun 2025</option>
+        </select>
+        <button id="refresh-btn" class="text-sm px-3 py-1.5 rounded-lg text-white font-medium" style="background:var(--navy-950)"><span class="icon">⟳</span> Muat Ulang</button>
+      </div>
+    </header>
+
+    <main class="flex-1 p-4 sm:p-8 space-y-6">
+      <div id="conn-error" class="hidden card border-l-4 !border-l-[var(--danger)] px-4 py-3 text-sm text-[var(--danger)]"></div>
+
+      <div class="section-stack relative">
+      <!-- ===================== SECTION: DASHBOARD ===================== -->
+      <section id="section-dashboard" class="section active space-y-6">
+
+        <!-- KPI Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          <div class="card p-5">
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Capaian Kinerja</p>
+            <p class="text-3xl font-extrabold font-mono-data mt-2" style="color:var(--navy-950)" id="kpi-capaian">–</p>
+            <p class="text-xs text-slate-400 mt-1">Rata-rata capaian seluruh IKU</p>
+          </div>
+          <div class="card p-5">
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Serapan Anggaran</p>
+            <p class="text-3xl font-extrabold font-mono-data mt-2" style="color:var(--navy-950)" id="kpi-serapan">–</p>
+            <p class="text-xs text-slate-400 mt-1">Realisasi anggaran terhadap pagu</p>
+          </div>
+          <div class="card p-5 flex items-center justify-between">
+            <div>
+              <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Predikat SAKIP</p>
+              <p class="text-xs text-slate-400 mt-1">Skor total: <span class="font-mono-data" id="kpi-skor">–</span></p>
+            </div>
+            <div class="w-16 h-16 rounded-full stamp flex items-center justify-center shrink-0">
+              <span class="text-xl font-extrabold" style="color:var(--gold-600)" id="kpi-predikat">–</span>
+            </div>
+          </div>
+          <div class="card p-5">
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Jumlah IKU Terpantau</p>
+            <p class="text-3xl font-extrabold font-mono-data mt-2" style="color:var(--navy-950)" id="kpi-jumlah">–</p>
+            <p class="text-xs text-slate-400 mt-1" id="kpi-sebaran">Tercapai · Perlu Perhatian · Belum Tercapai</p>
+          </div>
+        </div>
+
+        <!-- Chart + Predikat detail -->
+        <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          <div class="card p-5 xl:col-span-2 chart-wrap">
+            <h3 class="text-sm font-bold mb-4" style="color:var(--navy-950)">Target vs Realisasi Indikator Kinerja Utama</h3>
+            <div class="h-72"><canvas id="chart-target-realisasi"></canvas></div>
+          </div>
+          <div class="card p-5 chart-wrap">
+            <h3 class="text-sm font-bold mb-4" style="color:var(--navy-950)">Komponen Evaluasi SAKIP</h3>
+            <div class="h-72"><canvas id="chart-evaluasi"></canvas></div>
+          </div>
+        </div>
+
+        <!-- Tabel PK -->
+        <div class="card p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-bold" style="color:var(--navy-950)">Ringkasan Perjanjian Kinerja</h3>
+            <span class="text-xs text-slate-400 font-mono-data" id="pk-count">0 baris</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-left text-xs uppercase text-slate-500 border-b border-slate-200">
+                  <th class="py-2 pr-4">Sasaran Strategis</th>
+                  <th class="py-2 pr-4">Indikator Kinerja</th>
+                  <th class="py-2 pr-4 text-right">Target</th>
+                  <th class="py-2 pr-4 text-right">Realisasi</th>
+                  <th class="py-2 pr-4 text-right">Capaian</th>
+                  <th class="py-2 pr-4">Status</th>
+                </tr>
+              </thead>
+              <tbody id="pk-table-body" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== SECTION: RENSTRA ===================== -->
+      <section id="section-renstra" class="section space-y-4">
+        <div class="card p-5">
+          <h3 class="text-sm font-bold mb-4" style="color:var(--navy-950)">Data Perencanaan (Renstra / RKT)</h3>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-left text-xs uppercase text-slate-500 border-b border-slate-200">
+                  <th class="py-2 pr-4">Kode</th>
+                  <th class="py-2 pr-4">Sasaran Strategis</th>
+                  <th class="py-2 pr-4">Indikator</th>
+                  <th class="py-2 pr-4 text-right">Target</th>
+                  <th class="py-2 pr-4">Program</th>
+                  <th class="py-2 pr-4 text-right">Pagu Anggaran</th>
+                </tr>
+              </thead>
+              <tbody id="renstra-table-body" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== SECTION: PK ===================== -->
+      <section id="section-pk" class="section space-y-4">
+        <div class="card p-5">
+          <h3 class="text-sm font-bold mb-4" style="color:var(--navy-950)">Perjanjian Kinerja</h3>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-left text-xs uppercase text-slate-500 border-b border-slate-200">
+                  <th class="py-2 pr-4">ID</th>
+                  <th class="py-2 pr-4">Indikator</th>
+                  <th class="py-2 pr-4 text-right">Target</th>
+                  <th class="py-2 pr-4">Penanggung Jawab</th>
+                  <th class="py-2 pr-4">Triwulan</th>
+                  <th class="py-2 pr-4">Status PK</th>
+                </tr>
+              </thead>
+              <tbody id="pk-detail-table-body" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== SECTION: REALISASI ===================== -->
+      <section id="section-realisasi" class="section space-y-4">
+        <div class="card p-5">
+          <h3 class="text-sm font-bold mb-4" style="color:var(--navy-950)">Realisasi Kinerja &amp; Anggaran</h3>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-left text-xs uppercase text-slate-500 border-b border-slate-200">
+                  <th class="py-2 pr-4">Triwulan</th>
+                  <th class="py-2 pr-4">Indikator</th>
+                  <th class="py-2 pr-4 text-right">Target</th>
+                  <th class="py-2 pr-4 text-right">Realisasi</th>
+                  <th class="py-2 pr-4 text-right">Capaian %</th>
+                  <th class="py-2 pr-4 text-right">Serapan %</th>
+                  <th class="py-2 pr-4">Status</th>
+                </tr>
+              </thead>
+              <tbody id="realisasi-table-body" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== SECTION: EVALUASI ===================== -->
+      <section id="section-evaluasi" class="section space-y-4">
+        <div class="card p-5">
+          <h3 class="text-sm font-bold mb-4" style="color:var(--navy-950)">Status Evaluasi SAKIP</h3>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-left text-xs uppercase text-slate-500 border-b border-slate-200">
+                  <th class="py-2 pr-4">Komponen</th>
+                  <th class="py-2 pr-4 text-right">Bobot</th>
+                  <th class="py-2 pr-4 text-right">Nilai</th>
+                  <th class="py-2 pr-4 text-right">Skor</th>
+                </tr>
+              </thead>
+              <tbody id="evaluasi-table-body" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Bottom nav for mobile -->
+<nav class="lg:hidden fixed bottom-0 inset-x-0 bg-[var(--navy-950)] text-slate-200 flex justify-around py-2 z-20" id="mobile-nav">
+  <button data-target="dashboard" class="mobile-link text-xs flex flex-col items-center gap-0.5 px-2 py-1">◧<span>Home</span></button>
+  <button data-target="renstra" class="mobile-link text-xs flex flex-col items-center gap-0.5 px-2 py-1">▤<span>Renstra</span></button>
+  <button data-target="pk" class="mobile-link text-xs flex flex-col items-center gap-0.5 px-2 py-1">✎<span>PK</span></button>
+  <button data-target="realisasi" class="mobile-link text-xs flex flex-col items-center gap-0.5 px-2 py-1">▲<span>Realisasi</span></button>
+  <button data-target="evaluasi" class="mobile-link text-xs flex flex-col items-center gap-0.5 px-2 py-1">◈<span>Evaluasi</span></button>
+</nav>
+
+<script>
+/* =========================================================================
+ * KONFIGURASI — ganti dengan URL Web App Google Apps Script Anda
+ * (Deploy > New deployment > Web app > salin URL yang berakhiran /exec)
+ * =======================================================================*/
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/GANTI_DENGAN_DEPLOYMENT_ID_ANDA/exec';
+
+let chartTargetRealisasi, chartEvaluasi;
+
+// ------------------------- Navigasi sidebar -------------------------
+function setActiveSection(target) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById('section-' + target).classList.add('active');
+  document.querySelectorAll('.sidebar-link, .mobile-link').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('[data-target="' + target + '"]').forEach(b => b.classList.add('active'));
+}
+document.querySelectorAll('#sidebar-nav .sidebar-link, #mobile-nav .mobile-link').forEach(btn => {
+  btn.addEventListener('click', () => setActiveSection(btn.dataset.target));
+});
+
+// ------------------------- Helper format -------------------------
+const fmtPct = n => (n === null || n === undefined || isNaN(n)) ? '–' : n.toFixed(1) + '%';
+const fmtNum = n => (n === null || n === undefined || isNaN(n)) ? '–' : Number(n).toLocaleString('id-ID');
+const fmtRupiah = n => (n === null || n === undefined || isNaN(n)) ? '–' : 'Rp ' + Number(n).toLocaleString('id-ID');
+const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// Animasi hitung naik (count-up) untuk angka KPI — dari 0 (atau nilai lama) ke nilai baru
+function animateNumber(el, endValue, { decimals = 0, suffix = '', duration = 900 } = {}) {
+  if (endValue === null || endValue === undefined || isNaN(endValue)) { el.textContent = '–'; return; }
+  if (prefersReducedMotion) { el.textContent = endValue.toFixed(decimals).replace('.', ',') + suffix; return; }
+  const startValue = Number(el.dataset.rawValue) || 0;
+  const startTime = performance.now();
+  function tick(now) {
+    const progress = Math.min((now - startTime) / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+    const current = startValue + (endValue - startValue) * eased;
+    el.textContent = current.toFixed(decimals).replace('.', ',') + suffix;
+    if (progress < 1) requestAnimationFrame(tick);
+    else el.dataset.rawValue = endValue;
+  }
+  requestAnimationFrame(tick);
+}
+
+function statusBadge(status) {
+  const map = {
+    'Tercapai': 'badge-tercapai',
+    'Perlu Perhatian': 'badge-perhatian',
+    'Belum Tercapai': 'badge-belum'
+  };
+  const cls = map[status] || 'badge-nodata';
+  const label = status || 'Belum Ada Data';
+  return `<span class="badge ${cls}">${label}</span>`;
+}
+
+function showConnError(msg) {
+  const el = document.getElementById('conn-error');
+  if (!msg) { el.classList.add('hidden'); return; }
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+
+// ------------------------- Fetch API (GET) -------------------------
+async function apiGet(action, extraParams = {}) {
+  const params = new URLSearchParams({ action, tahun: document.getElementById('year-select').value, ...extraParams });
+  const res = await fetch(`${APPS_SCRIPT_URL}?${params.toString()}`);
+  const json = await res.json();
+  if (!json.success) throw new Error(json.error || 'Gagal mengambil data');
+  return json.data;
+}
+
+// Contoh fungsi POST (create/update/delete) — dipanggil dari form input Anda.
+// Dikirim sebagai text/plain agar browser TIDAK melakukan CORS preflight (OPTIONS),
+// karena Apps Script Web App tidak menangani preflight OPTIONS secara native.
+async function apiPost(sheet, method, data, id) {
+  const res = await fetch(APPS_SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ apiKey: 'ubah-dengan-kunci-rahasia-anda', sheet, method, id, data })
+  });
+  const json = await res.json();
+  if (!json.success) throw new Error(json.error || 'Gagal menyimpan data');
+  return json.data;
+}
+
+// ------------------------- Render Dashboard -------------------------
+function renderDashboard(d) {
+  animateNumber(document.getElementById('kpi-capaian'), d.kpi.capaianKinerjaPersen, { decimals: 1, suffix: '%' });
+  animateNumber(document.getElementById('kpi-serapan'), d.kpi.serapanAnggaranPersen, { decimals: 1, suffix: '%' });
+  animateNumber(document.getElementById('kpi-skor'), d.kpi.totalSkorSakip, { decimals: 1 });
+  animateNumber(document.getElementById('kpi-jumlah'), d.kpi.jumlahIku, { decimals: 0, duration: 700 });
+
+  const predikatEl = document.getElementById('kpi-predikat');
+  const newPredikat = d.kpi.predikatSakip || '–';
+  if (predikatEl.textContent !== newPredikat) {
+    predikatEl.textContent = newPredikat;
+    predikatEl.classList.remove('predikat-pop');
+    void predikatEl.offsetWidth; // reflow agar animasi bisa diulang
+    predikatEl.classList.add('predikat-pop');
+  }
+
+  document.getElementById('kpi-sebaran').textContent =
+    `${d.statusSebaran.tercapai} Tercapai · ${d.statusSebaran.perluPerhatian} Perlu Perhatian · ${d.statusSebaran.belumTercapai} Belum Tercapai`;
+
+  // Chart: Target vs Realisasi
+  const ctx1 = document.getElementById('chart-target-realisasi').getContext('2d');
+  const labels1 = d.chartTargetRealisasi.map(r => r.indikator.length > 22 ? r.indikator.slice(0, 22) + '…' : r.indikator);
+  if (chartTargetRealisasi) chartTargetRealisasi.destroy();
+  chartTargetRealisasi = new Chart(ctx1, {
+    type: 'bar',
+    data: {
+      labels: labels1,
+      datasets: [
+        { label: 'Target', data: d.chartTargetRealisasi.map(r => r.target), backgroundColor: 'rgba(11,37,69,0.85)', borderRadius: 4 },
+        { label: 'Realisasi', data: d.chartTargetRealisasi.map(r => r.realisasi), backgroundColor: 'rgba(201,162,39,0.9)', borderRadius: 4 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { font: { family: 'Plus Jakarta Sans' } } } },
+      scales: { x: { ticks: { font: { size: 10 } } }, y: { beginAtZero: true } }
+    }
+  });
+
+  // Chart: Evaluasi komponen (skor)
+  const ctx2 = document.getElementById('chart-evaluasi').getContext('2d');
+  if (chartEvaluasi) chartEvaluasi.destroy();
+  chartEvaluasi = new Chart(ctx2, {
+    type: 'doughnut',
+    data: {
+      labels: d.evaluasiKomponen.map(r => r.komponen),
+      datasets: [{
+        data: d.evaluasiKomponen.map(r => r.skor),
+        backgroundColor: ['#0B2545','#13315C','#C9A227','#2F7D5D','#B9770E']
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } }
+    }
+  });
+
+  // Tabel PK
+  const tbody = document.getElementById('pk-table-body');
+  tbody.innerHTML = d.tabelPerjanjianKinerja.map(r => `
+    <tr>
+      <td class="py-2.5 pr-4 text-slate-600">${r.sasaranStrategis || '-'}</td>
+      <td class="py-2.5 pr-4 font-medium">${r.indikator || '-'}</td>
+      <td class="py-2.5 pr-4 text-right font-mono-data">${fmtNum(r.target)} ${r.satuan || ''}</td>
+      <td class="py-2.5 pr-4 text-right font-mono-data">${fmtNum(r.realisasi)}</td>
+      <td class="py-2.5 pr-4 text-right font-mono-data">${fmtPct(r.capaianPersen)}</td>
+      <td class="py-2.5 pr-4">${statusBadge(r.status)}</td>
+    </tr>
+  `).join('') || `<tr><td colspan="6" class="py-6 text-center text-slate-400">Belum ada data untuk tahun ini.</td></tr>`;
+  document.getElementById('pk-count').textContent = `${d.tabelPerjanjianKinerja.length} baris`;
+}
+
+// ------------------------- Render tabel-tabel per halaman -------------------------
+function renderRenstra(rows) {
+  document.getElementById('renstra-table-body').innerHTML = rows.map(r => `
+    <tr>
+      <td class="py-2.5 pr-4 font-mono-data text-xs">${r.Kode_IKU}</td>
+      <td class="py-2.5 pr-4">${r.Sasaran_Strategis}</td>
+      <td class="py-2.5 pr-4">${r.Indikator_Kinerja}</td>
+      <td class="py-2.5 pr-4 text-right font-mono-data">${fmtNum(r.Target)} ${r.Satuan}</td>
+      <td class="py-2.5 pr-4 text-slate-600">${r.Program}</td>
+      <td class="py-2.5 pr-4 text-right font-mono-data">${fmtRupiah(r.Anggaran_Pagu)}</td>
+    </tr>
+  `).join('') || `<tr><td colspan="6" class="py-6 text-center text-slate-400">Belum ada data.</td></tr>`;
+}
+
+function renderPk(rows) {
+  document.getElementById('pk-detail-table-body').innerHTML = rows.map(r => `
+    <tr>
+      <td class="py-2.5 pr-4 font-mono-data text-xs">${r.ID}</td>
+      <td class="py-2.5 pr-4">${r.Indikator_Kinerja}</td>
+      <td class="py-2.5 pr-4 text-right font-mono-data">${fmtNum(r.Target)} ${r.Satuan}</td>
+      <td class="py-2.5 pr-4">${r.Penanggung_Jawab}</td>
+      <td class="py-2.5 pr-4">${r.Triwulan}</td>
+      <td class="py-2.5 pr-4">${r.Status_PK}</td>
+    </tr>
+  `).join('') || `<tr><td colspan="6" class="py-6 text-center text-slate-400">Belum ada data.</td></tr>`;
+}
+
+function renderRealisasi(rows) {
+  document.getElementById('realisasi-table-body').innerHTML = rows.map(r => `
+    <tr>
+      <td class="py-2.5 pr-4">${r.Triwulan}</td>
+      <td class="py-2.5 pr-4">${r.Indikator_Kinerja}</td>
+      <td class="py-2.5 pr-4 text-right font-mono-data">${fmtNum(r.Target)}</td>
+      <td class="py-2.5 pr-4 text-right font-mono-data">${fmtNum(r.Realisasi)}</td>
+      <td class="py-2.5 pr-4 text-right font-mono-data">${fmtPct(r.Capaian_Persen)}</td>
+      <td class="py-2.5 pr-4 text-right font-mono-data">${fmtPct(r.Serapan_Persen)}</td>
+      <td class="py-2.5 pr-4">${statusBadge(r.Status)}</td>
+    </tr>
+  `).join('') || `<tr><td colspan="7" class="py-6 text-center text-slate-400">Belum ada data.</td></tr>`;
+}
+
+function renderEvaluasi(rows) {
+  document.getElementById('evaluasi-table-body').innerHTML = rows.map(r => `
+    <tr>
+      <td class="py-2.5 pr-4">${r.Komponen}</td>
+      <td class="py-2.5 pr-4 text-right font-mono-data">${r.Bobot}%</td>
+      <td class="py-2.5 pr-4 text-right font-mono-data">${r.Nilai}</td>
+      <td class="py-2.5 pr-4 text-right font-mono-data">${r.Skor}</td>
+    </tr>
+  `).join('') || `<tr><td colspan="4" class="py-6 text-center text-slate-400">Belum ada data.</td></tr>`;
+}
+
+// ------------------------- Load semua data -------------------------
+async function loadAll() {
+  showConnError(null);
+  const refreshBtn = document.getElementById('refresh-btn');
+  refreshBtn.classList.add('loading');
+  refreshBtn.disabled = true;
+  try {
+    const [dashboard, renstra, pk, realisasi, evaluasi] = await Promise.all([
+      apiGet('dashboard'),
+      apiGet('list', { sheet: 'renstra' }),
+      apiGet('list', { sheet: 'pk' }),
+      apiGet('list', { sheet: 'realisasi' }),
+      apiGet('list', { sheet: 'evaluasi' }),
+    ]);
+    renderDashboard(dashboard);
+    renderRenstra(renstra);
+    renderPk(pk);
+    renderRealisasi(realisasi);
+    renderEvaluasi(evaluasi);
+  } catch (err) {
+    showConnError('Gagal terhubung ke Apps Script Web App. Pastikan APPS_SCRIPT_URL sudah diisi dan deployment sudah aktif. Detail: ' + err.message);
+    console.error(err);
+  } finally {
+    refreshBtn.classList.remove('loading');
+    refreshBtn.disabled = false;
+  }
+}
+
+document.getElementById('refresh-btn').addEventListener('click', loadAll);
+document.getElementById('year-select').addEventListener('change', loadAll);
+
+if (APPS_SCRIPT_URL.includes('GANTI_DENGAN_DEPLOYMENT_ID_ANDA')) {
+  showConnError('APPS_SCRIPT_URL belum diisi. Buka index.html, ganti nilai APPS_SCRIPT_URL dengan URL Web App hasil deploy Anda.');
+} else {
+  loadAll();
+}
+</script>
+</body>
+</html>
